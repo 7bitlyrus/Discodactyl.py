@@ -8,8 +8,8 @@ import websockets
 
 
 class PterodactylClient:
-    loop: asyncio.AbstractEventLoop = None
     httpx_client: httpx.AsyncClient = None
+    loop: asyncio.AbstractEventLoop = None
     panel_url: str = None
     server_id: str = None
     websocket: websockets.WebSocketClientProtocol = None
@@ -23,6 +23,7 @@ class PterodactylClient:
 
         self.httpx_client = httpx.AsyncClient(base_url=self.panel_url, headers={"authorization": f"Bearer {api_key}"})
         self.loop = asyncio.get_event_loop()
+
         self.loop.run_until_complete(self._establish())
 
     async def _establish(self) -> None:
@@ -32,7 +33,7 @@ class PterodactylClient:
         await self._authorize(auth_token)
         await self._consumer_handler(self.websocket)
 
-    async def _authorize(self, auth_token: str):
+    async def _authorize(self, auth_token: typing.Optional[str] = None):
         if not auth_token:
             auth_token, _ = await self._fetch_websocket_credentials()
 
@@ -40,8 +41,10 @@ class PterodactylClient:
 
     async def _consumer_handler(self, websocket: websockets.WebSocketClientProtocol) -> None:
         async for message in websocket:
-            # Among the many todos is resending auth token
-            print(f"=> {message}")
+            obj = json.loads(message)
+
+            if obj['event'] in ['token expiring', 'token expired']:
+                await self._authorize()
 
     async def _fetch_websocket_credentials(self) -> typing.Tuple[str, str]:
         resp = await self.httpx_client.get(f"/api/client/servers/{self.server_id}/websocket")

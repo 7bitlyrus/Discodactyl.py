@@ -26,14 +26,16 @@ class PterodactylClient:
         self.loop.run_until_complete(self._establish())
 
     async def _establish(self) -> None:
-        _, websocket_url = await self._fetch_websocket_credentials()
+        auth_token, websocket_url = await self._fetch_websocket_credentials()
         self.websocket = await websockets.connect(websocket_url, extra_headers={"origin": self.panel_url})
 
-        await self._authorize()
+        await self._authorize(auth_token)
         await self._consumer_handler(self.websocket)
 
-    async def _authorize(self):
-        auth_token, _ = await self._fetch_websocket_credentials()
+    async def _authorize(self, auth_token: str):
+        if not auth_token:
+            auth_token, _ = await self._fetch_websocket_credentials()
+
         await self.send("auth", [auth_token])
 
     async def _consumer_handler(self, websocket: websockets.WebSocketClientProtocol) -> None:

@@ -22,13 +22,13 @@ class PterodactylClient:
         self.panel_url = f"{panel_url_parsed.scheme}://{panel_url_parsed.netloc}"
 
         self.httpx_client = httpx.AsyncClient(base_url=self.panel_url, headers={"authorization": f"Bearer {api_key}"})
-        self.loop = asyncio.get_event_loop()
+        # self.loop = asyncio.get_event_loop()
 
-        self.loop.run_until_complete(self._establish())
+        # self.loop.run_until_complete(self._establish())
 
     async def _establish(self) -> None:
         auth_token, websocket_url = await self._fetch_websocket_credentials()
-        self.websocket = await websockets.connect(websocket_url, extra_headers={"origin": self.panel_url})
+        self.websocket = await websockets.connect(websocket_url, origin=self.panel_url)
 
         await self._authorize(auth_token)
         await self._consumer_handler(self.websocket)
@@ -46,6 +46,8 @@ class PterodactylClient:
             if obj['event'] in ['token expiring', 'token expired']:
                 await self._authorize()
 
+            print(f'==> {message}')
+
     async def _fetch_websocket_credentials(self) -> typing.Tuple[str, str]:
         resp = await self.httpx_client.get(f"/api/client/servers/{self.server_id}/websocket")
         resp.raise_for_status()
@@ -54,5 +56,7 @@ class PterodactylClient:
         return json["data"]["token"], json["data"]["socket"]
 
     async def send(self, event: str, args: list) -> None:
+        print(f'<== {message}')
+
         object = {"event": event, "args": args}
         await self.websocket.send(json.dumps(object))

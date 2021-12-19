@@ -1,13 +1,31 @@
-import yaml
+import yaml, asyncio, logging, discord
 
 from clients.pterodactyl import PterodactylClient
-
 
 with open("config.yml", "r") as stream:
     config = yaml.safe_load(stream)
 
-    PterodactylClient(
+    ps = PterodactylClient(
         config["pterodactyl"]["panel_url"],
         config["pterodactyl"]["api_key"],
         config["server"]["id"],
     )
+
+client = discord.Client()
+
+
+@client.event
+async def on_ready():
+    print('[discord] on_ready')
+
+
+@client.event
+async def on_message(message):
+    print('[discord] on_message:', message.content)
+
+
+async def main():
+    await asyncio.gather(ps.start(), client.start(config['discord-token']))
+
+
+asyncio.run(main())

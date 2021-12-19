@@ -1,6 +1,11 @@
-import yaml, asyncio, logging, discord
+import asyncio
+import logging
+
+import discord
+import yaml
 
 from clients.pterodactyl import PterodactylClient
+
 
 with open("config.yml", "r") as stream:
     config = yaml.safe_load(stream)

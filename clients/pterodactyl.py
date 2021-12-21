@@ -37,17 +37,7 @@ class PterodactylClient:
         await self.send("auth", [auth_token])
 
     async def _consumer_handler(self, websocket: websockets.WebSocketClientProtocol) -> None:
-        while True:
-            # Prevent blocking by using timeouts and sleep.
-            # "Canceling recv() is safe. There’s no risk of losing the next message. The next invocation of recv() will
-            # return it."
-            try:
-                message = await asyncio.wait_for(websocket.recv(), timeout=0.1)
-            except asyncio.exceptions.TimeoutError:
-                continue
-            finally:
-                await asyncio.sleep(0.1)
-
+        async for message in self.websocket:
             object = json.loads(message)
             print(f'[ws] received: {object}')
 

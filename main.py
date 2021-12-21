@@ -6,6 +6,7 @@ import yaml
 
 from clients.pterodactyl import PterodactylClient
 
+
 logging.basicConfig(level=logging.INFO)
 
 with open("config.yml", "r") as stream:

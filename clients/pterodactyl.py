@@ -68,9 +68,15 @@ class PterodactylClient:
         object = {"event": event, "args": args}
         logging.debug(f'sent: {object}')
 
+        if self.closed:
+            raise RuntimeError('Client is closed')
+
         await self.websocket.send(json.dumps(object))
 
     async def start(self) -> None:
+        if not self.closed:
+            raise RuntimeError('Client is already open')
+
         headers = {"authorization": f"Bearer {self.api_key}"}
         self.httpx_client = httpx.AsyncClient(base_url=self.panel_url, headers=headers)
 
@@ -78,6 +84,9 @@ class PterodactylClient:
         await self._connect()
 
     async def close(self) -> None:
+        if self.closed or self.websocket is None:
+            raise RuntimeError('Client is already closed')
+
         self.closed = True
         await self.httpx_client.aclose()
 

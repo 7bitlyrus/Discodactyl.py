@@ -23,13 +23,6 @@ class PterodactylClient:
 
         self.httpx_client = httpx.AsyncClient(base_url=self.panel_url, headers={"authorization": f"Bearer {api_key}"})
 
-    async def start(self) -> None:
-        auth_token, websocket_url = await self._fetch_websocket_credentials()
-        self.websocket = await websockets.connect(websocket_url, origin=self.panel_url)
-
-        await self._authorize(auth_token)
-        await self._consumer_handler(self.websocket)
-
     async def _authorize(self, auth_token: typing.Optional[str] = None):
         if not auth_token:
             auth_token, _ = await self._fetch_websocket_credentials()
@@ -39,7 +32,7 @@ class PterodactylClient:
     async def _consumer_handler(self, websocket: websockets.WebSocketClientProtocol) -> None:
         async for message in self.websocket:
             object = json.loads(message)
-            print(f'[ws] received: {object}')
+            logging.debug(f'recv: {object}')
 
             if object['event'] in ['token expiring', 'token expired']:
                 await self._authorize()
@@ -53,6 +46,13 @@ class PterodactylClient:
 
     async def send(self, event: str, args: list) -> None:
         object = {"event": event, "args": args}
-        print(f'[ws] sent: {object}')
+        logging.debug(f'sent: {object}')
 
         await self.websocket.send(json.dumps(object))
+
+    async def start(self) -> None:
+        auth_token, websocket_url = await self._fetch_websocket_credentials()
+        self.websocket = await websockets.connect(websocket_url, origin=self.panel_url)
+
+        await self._authorize(auth_token)
+        await self._consumer_handler(self.websocket)

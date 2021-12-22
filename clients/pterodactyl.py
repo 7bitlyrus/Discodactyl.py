@@ -99,7 +99,7 @@ class PterodactylClient:
 
         return decorator
 
-    async def send(self, event: str, data: list = None) -> None:
+    async def send(self, event: str, data: str = None) -> None:
         object = {"event": event, "args": [data]}
         logging.debug(f'sent: {object}')
 

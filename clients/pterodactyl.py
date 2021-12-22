@@ -1,7 +1,6 @@
 import json
 import logging
 import typing
-
 from urllib.parse import urlparse
 
 import backoff

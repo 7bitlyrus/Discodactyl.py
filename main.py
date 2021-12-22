@@ -30,7 +30,23 @@ async def on_ready():
 @client.event
 async def on_message(message):
     print('[discord] on_message:', message.content)
-    await ps.send('send command', [f'say {message.content}'])
+    # await ps.send('send command', [f'say {message.content}'])
+
+    print(ps.events)
+    # print('closing.')
+    # await ps.close()
+    # print('closed.')
+
+
+@ps.on('stats')
+async def test(data):
+    print(data)
+
+
+@ps.on('console output')
+async def output(data):
+    await ps.send('send command', f'say {data}')
 
 
 client.run(config['discord-token'])
+# asyncio.run(ps.start())

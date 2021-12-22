@@ -1,11 +1,10 @@
-import asyncio
 import json
 import logging
 import typing
-import backoff
-import traceback
+
 from urllib.parse import urlparse
 
+import backoff
 import httpx
 import websockets
 
@@ -13,6 +12,7 @@ import websockets
 class PterodactylClient:
     api_key: str = None
     closed: str = True
+    events: dict = []
     httpx_client: httpx.AsyncClient = None
     panel_url: str = None
     server_id: str = None
@@ -30,7 +30,7 @@ class PterodactylClient:
         if not auth_token:
             auth_token, _ = await self._fetch_websocket_credentials()
 
-        await self.send("auth", [auth_token])
+        await self.send("auth", auth_token)
 
     @backoff.on_exception(backoff.expo, Exception)
     async def _connect(self) -> None:
@@ -56,6 +56,24 @@ class PterodactylClient:
             if object['event'] in ['token expiring', 'token expired']:
                 await self._authorize()
 
+            for event_name, function in self.events:
+                if event_name == object['event']:
+
+                    # Most events return addtional data, but some do not.
+                    if 'args' in object:
+                        data = object['args'][0]
+
+                        # Some events may return valid json instead, such as 'stats', so we attempt to parse it.
+                        try:
+                            data = json.loads(data)
+                        except ValueError:
+                            pass
+
+                        await function(data)
+
+                    else:
+                        await function()
+
     async def _fetch_websocket_credentials(self) -> typing.Tuple[str, str]:
         resp = await self.httpx_client.get(f"/api/client/servers/{self.server_id}/websocket")
         resp.raise_for_status()
@@ -64,27 +82,8 @@ class PterodactylClient:
         logging.debug(f"Websocket credentials fetched: {json['data']}")
         return json["data"]["token"], json["data"]["socket"]
 
-    async def send(self, event: str, args: list) -> None:
-        object = {"event": event, "args": args}
-        logging.debug(f'sent: {object}')
-
-        if self.closed:
-            raise RuntimeError('Client is closed')
-
-        await self.websocket.send(json.dumps(object))
-
-    async def start(self) -> None:
-        if not self.closed:
-            raise RuntimeError('Client is already open')
-
-        headers = {"authorization": f"Bearer {self.api_key}"}
-        self.httpx_client = httpx.AsyncClient(base_url=self.panel_url, headers=headers)
-
-        self.closed = False
-        await self._connect()
-
     async def close(self) -> None:
-        if self.closed or self.websocket is None:
+        if self.closed:
             raise RuntimeError('Client is already closed')
 
         self.closed = True
@@ -94,3 +93,28 @@ class PterodactylClient:
             await self.websocket.close()
         except Exception as e:
             logging.debug(f"Could not close websocket ({e})")
+
+    def on(self, event: str) -> typing.Callable:
+        def decorator(func: typing.Callable) -> None:
+            self.events.append((event, func))
+
+        return decorator
+
+    async def send(self, event: str, data: list = None) -> None:
+        object = {"event": event, "args": [data]}
+        logging.debug(f'sent: {object}')
+
+        if self.closed:
+            raise RuntimeError('Client is closed')
+
+        await self.websocket.send(json.dumps(object))
+
+    async def start(self) -> None:
+        if not self.closed:
+            raise RuntimeError('Client is already running')
+
+        headers = {"authorization": f"Bearer {self.api_key}"}
+        self.httpx_client = httpx.AsyncClient(base_url=self.panel_url, headers=headers)
+
+        self.closed = False
+        await self._connect()

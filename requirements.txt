@@ -3,4 +3,4 @@ pyyaml
 websockets
 backoff
 git+https://github.com/Rapptz/discord.py.git@master
-jishaku
+git+https://github.com/Gorialis/jishaku@master

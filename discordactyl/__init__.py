@@ -10,11 +10,8 @@ logging.basicConfig(level=logging.INFO)
 with open("config.yml", "r") as stream:
     config = yaml.safe_load(stream)
 
-bot = commands.Bot(
-    command_prefix=commands.when_mentioned,
-    case_insensitive=True,
-    intents=discord.Intents(messages=True),
-)
+intents = discord.Intents(guilds=True, messages=True)
+bot = commands.Bot(command_prefix=commands.when_mentioned, case_insensitive=True, intents=intents)
 
 pterodactyl = PterodactylClient(
     config["pterodactyl"]["panel_url"],
@@ -25,13 +22,14 @@ pterodactyl = PterodactylClient(
 
 class Bridge(commands.Cog):
     def __init__(self, bot):
+        self.bot = bot
         self.task = bot.loop.create_task(pterodactyl.start())
 
     def cog_unload(self):
         self.task.cancel()
 
     @commands.Cog.listener()
-    async def on_message(message):
+    async def on_message(self, message):
         print('[discord] on_message:', message.content)
 
     @pterodactyl.on('stats')

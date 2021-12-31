@@ -9,6 +9,10 @@ import httpx
 import websockets
 
 
+class InvalidStateError(RuntimeError):
+    pass
+
+
 class PterodactylClient:
     api_key: str = None
     closed: str = True
@@ -84,7 +88,7 @@ class PterodactylClient:
 
     async def close(self) -> None:
         if self.closed:
-            raise RuntimeError('Client is already closed')
+            raise InvalidStateError('Client is already closed')
 
         self.closed = True
         await self.httpx_client.aclose()
@@ -105,14 +109,14 @@ class PterodactylClient:
         logging.debug(f'sent: {object}')
 
         if self.closed:
-            raise RuntimeError('Client is closed')
+            raise InvalidStateError('Client is closed')
 
         await self.websocket.send(json.dumps(object))
 
     async def start(self) -> None:
         try:
             if not self.closed:
-                raise RuntimeError('Client is already running')
+                raise InvalidStateError('Client is already running')
 
             headers = {"authorization": f"Bearer {self.api_key}"}
             self.httpx_client = httpx.AsyncClient(base_url=self.panel_url, headers=headers)

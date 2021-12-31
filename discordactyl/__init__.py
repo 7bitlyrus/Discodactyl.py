@@ -1,9 +1,11 @@
+import logging
+
 import discord
 import yaml
-import logging
 from discord.ext import commands
 
 from .pterodactyl import PterodactylClient
+
 
 logging.basicConfig(level=logging.INFO)
 

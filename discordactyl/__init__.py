@@ -4,7 +4,7 @@ import logging
 import discord
 import yaml
 
-from clients.pterodactyl import PterodactylClient
+from .pterodactyl import PterodactylClient
 
 
 logging.basicConfig(level=logging.INFO)
@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 with open("config.yml", "r") as stream:
     config = yaml.safe_load(stream)
 
-    ps = PterodactylClient(
+    pterodactyl = PterodactylClient(
         config["pterodactyl"]["panel_url"],
         config["pterodactyl"]["api_key"],
         config["server"]["id"],
@@ -23,30 +23,27 @@ client = discord.Client()
 
 @client.event
 async def on_ready():
-    asyncio.create_task(ps.start())  # TODO: CLOSE TASK AND ONLY START ONCE, ETC ,ETC
+    asyncio.create_task(pterodactyl.start())  # TODO: CLOSE TASK AND ONLY START ONCE, ETC ,ETC
     print('[discord] on_ready')
 
 
 @client.event
 async def on_message(message):
     print('[discord] on_message:', message.content)
-    # await ps.send('send command', [f'say {message.content}'])
+    # await pterodactyl.send('send command', [f'say {message.content}'])
 
-    print(ps.events)
-    # print('closing.')
-    # await ps.close()
-    # print('closed.')
+    # await pterodactyl.close()
 
 
-@ps.on('stats')
+@pterodactyl.on('stats')
 async def test(data):
     print(data)
 
 
-@ps.on('console output')
+@pterodactyl.on('console output')
 async def output(data):
-    await ps.send('send command', f'say {data}')
+    await pterodactyl.send('send command', f'say {data}')
 
 
 client.run(config['discord-token'])
-# asyncio.run(ps.start())
+# asyncio.run(pterodactyl.start())

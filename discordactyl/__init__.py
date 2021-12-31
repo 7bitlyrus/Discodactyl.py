@@ -25,7 +25,7 @@ pterodactyl = PterodactylClient(
 
 class Bridge(commands.Cog):
     def __init__(self, bot):
-        self.task = bot.loop.create_task(pterodactyl.start())  # TODO: CLOSE TASK AND ONLY START ONCE, ETC ,ETC
+        self.task = bot.loop.create_task(pterodactyl.start())
 
     def cog_unload(self):
         self.task.cancel()
@@ -37,10 +37,6 @@ class Bridge(commands.Cog):
     @pterodactyl.on('stats')
     async def test(data):
         print(data)
-
-    @pterodactyl.on('console output')
-    async def output(data):
-        await pterodactyl.send('send command', f'say {data}')
 
 
 bot.add_cog(Bridge(bot))

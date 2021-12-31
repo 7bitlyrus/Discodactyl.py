@@ -2,3 +2,5 @@ httpx
 pyyaml
 websockets
 backoff
+git+https://github.com/Rapptz/discord.py.git@master
+jishaku

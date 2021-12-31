@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import typing
@@ -109,11 +110,15 @@ class PterodactylClient:
         await self.websocket.send(json.dumps(object))
 
     async def start(self) -> None:
-        if not self.closed:
-            raise RuntimeError('Client is already running')
+        try:
+            if not self.closed:
+                raise RuntimeError('Client is already running')
 
-        headers = {"authorization": f"Bearer {self.api_key}"}
-        self.httpx_client = httpx.AsyncClient(base_url=self.panel_url, headers=headers)
+            headers = {"authorization": f"Bearer {self.api_key}"}
+            self.httpx_client = httpx.AsyncClient(base_url=self.panel_url, headers=headers)
 
-        self.closed = False
-        await self._connect()
+            self.closed = False
+            await self._connect()
+
+        except asyncio.CancelledError:
+            await self.close()

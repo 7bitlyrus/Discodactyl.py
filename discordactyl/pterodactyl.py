@@ -9,8 +9,22 @@ import httpx
 import websockets
 
 
+logger = logging.getLogger(__name__)
+
+
 class InvalidStateError(RuntimeError):
     pass
+
+
+# https://docs.python.org/3/howto/logging-cookbook.html#using-loggeradapters-to-impart-contextual-information
+class CustomAdapter(logging.LoggerAdapter):
+    """
+    This example adapter expects the passed in dict-like object to have a
+    'connid' key, whose value in brackets is prepended to the log message.
+    """
+
+    def process(self, msg, kwargs):
+        return '[%s] %s' % (self.extra['connid'], msg), kwargs
 
 
 class PterodactylClient:
@@ -30,9 +44,15 @@ class PterodactylClient:
         panel_url_parsed = urlparse(panel_url)
         self.panel_url = f"{panel_url_parsed.scheme}://{panel_url_parsed.netloc}"
 
+        self.log = CustomAdapter(logger, {'connid': self.server_id})
+
     async def _authorize(self, auth_token: typing.Optional[str] = None):
         if not auth_token:
+            self.log.info(f'Updating authorization')
             auth_token, _ = await self._fetch_websocket_credentials()
+
+        else:
+            self.log.info(f'Sending authorization')
 
         await self.send("auth", auth_token)
 
@@ -41,6 +61,7 @@ class PterodactylClient:
         try:
             auth_token, websocket_url = await self._fetch_websocket_credentials()
             self.websocket = await websockets.connect(websocket_url, origin=self.panel_url)
+            self.log.info(f'Connected to websocket')
 
             await self._authorize(auth_token)
             await self._consumer_handler(self.websocket)
@@ -48,17 +69,23 @@ class PterodactylClient:
         # Raise exception, triggering a backoff, only if not closing
         except Exception as e:
             if self.closed:
-                logging.debug(f'Exception occured in connection handler after closure ({e})')
+                self.log.warning(f'Exception occured in connection handler after closure ({e})')
             else:
                 raise e
 
     async def _consumer_handler(self, websocket: websockets.WebSocketClientProtocol) -> None:
+        self.log.info(f'Ready to receive messages')
+
         async for message in self.websocket:
             object = json.loads(message)
-            logging.debug(f'recv: {object}')
+            self.log.debug(f'recv: {object}')
 
             if object['event'] in ['token expiring', 'token expired']:
+                self.log.info(f'Server sent prompt for reauthoriazion: {object["event"]}')
                 await self._authorize()
+
+            if object['event'] in ['auth success']:
+                self.log.info('Authorization successful')
 
             for event_name, function in self.events:
                 if event_name == object['event']:
@@ -79,16 +106,19 @@ class PterodactylClient:
                         await function()
 
     async def _fetch_websocket_credentials(self) -> typing.Tuple[str, str]:
+        self.log.info(f'Fetching websocket credentials')
+
         resp = await self.httpx_client.get(f"/api/client/servers/{self.server_id}/websocket")
         resp.raise_for_status()
 
         json = resp.json()
-        logging.debug(f"Websocket credentials fetched: {json['data']}")
         return json["data"]["token"], json["data"]["socket"]
 
     async def close(self) -> None:
         if self.closed:
             raise InvalidStateError('Client is already closed')
+
+        self.log.info(f'Closing client')
 
         self.closed = True
         await self.httpx_client.aclose()
@@ -96,7 +126,7 @@ class PterodactylClient:
         try:
             await self.websocket.close()
         except Exception as e:
-            logging.debug(f"Could not close websocket ({e})")
+            self.log.warning(f"Could not close websocket ({e})")
 
     def on(self, event: str) -> typing.Callable:
         def decorator(func: typing.Callable) -> None:
@@ -106,7 +136,7 @@ class PterodactylClient:
 
     async def send(self, event: str, data: str = None) -> None:
         object = {"event": event, "args": [data]}
-        logging.debug(f'sent: {object}')
+        self.log.debug(f'sent: {object}')
 
         if self.closed:
             raise InvalidStateError('Client is closed')

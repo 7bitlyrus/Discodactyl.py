@@ -8,23 +8,17 @@ import backoff
 import httpx
 import websockets
 
+from .utils import CustomAdapter, fatal_code
 
 logger = logging.getLogger(__name__)
 
 
-class InvalidStateError(RuntimeError):
+class InvalidState(RuntimeError):
     pass
 
 
-# https://docs.python.org/3/howto/logging-cookbook.html#using-loggeradapters-to-impart-contextual-information
-class CustomAdapter(logging.LoggerAdapter):
-    """
-    This example adapter expects the passed in dict-like object to have a
-    'connid' key, whose value in brackets is prepended to the log message.
-    """
-
-    def process(self, msg, kwargs):
-        return '[%s] %s' % (self.extra['connid'], msg), kwargs
+class TokenExpired(Exception):
+    pass
 
 
 class PterodactylClient:
@@ -56,7 +50,9 @@ class PterodactylClient:
 
         await self.send("auth", auth_token)
 
-    @backoff.on_exception(backoff.expo, Exception)
+    @backoff.on_exception(backoff.expo, httpx.HTTPError, giveup=fatal_code)
+    @backoff.on_exception(backoff.expo, websockets.WebSocketException)
+    @backoff.on_exception(backoff.expo, TokenExpired)
     async def _connect(self) -> None:
         try:
             auth_token, websocket_url = await self._fetch_websocket_credentials()
@@ -80,12 +76,16 @@ class PterodactylClient:
             object = json.loads(message)
             self.log.debug(f'recv: {object}')
 
-            if object['event'] in ['token expiring', 'token expired']:
-                self.log.info(f'Server sent prompt for reauthoriazion: {object["event"]}')
+            if object['event'] == 'auth success':
+                self.log.info('Authorization successful')
+
+            if object['event'] == 'token expiring':
+                self.log.info(f'Server sent prompt for reauthoriazion')
                 await self._authorize()
 
-            if object['event'] in ['auth success']:
-                self.log.info('Authorization successful')
+            # We could reauthorize here, but we want to backoff just in case our permissions were revoked.
+            if object['event'] == 'token expired':
+                raise TokenExpired('Server sent notice that token expired')
 
             for event_name, function in self.events:
                 if event_name == object['event']:
@@ -116,17 +116,17 @@ class PterodactylClient:
 
     async def close(self) -> None:
         if self.closed:
-            raise InvalidStateError('Client is already closed')
+            raise InvalidState('Client is already closed')
 
         self.log.info(f'Closing client')
-
         self.closed = True
-        await self.httpx_client.aclose()
 
         try:
             await self.websocket.close()
         except Exception as e:
             self.log.warning(f"Could not close websocket ({e})")
+
+        await self.httpx_client.aclose()
 
     def on(self, event: str) -> typing.Callable:
         def decorator(func: typing.Callable) -> None:
@@ -139,14 +139,14 @@ class PterodactylClient:
         self.log.debug(f'sent: {object}')
 
         if self.closed:
-            raise InvalidStateError('Client is closed')
+            raise InvalidState('Client is closed')
 
         await self.websocket.send(json.dumps(object))
 
     async def start(self) -> None:
         try:
             if not self.closed:
-                raise InvalidStateError('Client is already running')
+                raise InvalidState('Client is already running')
 
             headers = {"authorization": f"Bearer {self.api_key}"}
             self.httpx_client = httpx.AsyncClient(base_url=self.panel_url, headers=headers)
@@ -156,3 +156,6 @@ class PterodactylClient:
 
         except asyncio.CancelledError:
             await self.close()
+
+        except Exception as e:
+            raise e

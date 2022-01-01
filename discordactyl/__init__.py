@@ -5,7 +5,7 @@ import yaml
 from discord.ext import commands
 
 from .pterodactyl import PterodactylClient
-
+from .utils import quit_on_exception
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,18 +25,20 @@ pterodactyl = PterodactylClient(
 class Bridge(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.task = bot.loop.create_task(pterodactyl.start())
+        self.task = bot.loop.create_task(quit_on_exception(pterodactyl.start()))
 
     def cog_unload(self):
         self.task.cancel()
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        print('[discord] on_message:', message.content)
+        # print('[discord] on_message:', message.content)
+        pass
 
     @pterodactyl.on('stats')
     async def test(data):
-        print(data)
+        # print(data)
+        pass
 
 
 bot.add_cog(Bridge(bot))

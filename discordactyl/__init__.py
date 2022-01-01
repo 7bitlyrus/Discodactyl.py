@@ -16,9 +16,9 @@ intents = discord.Intents(guilds=True, messages=True)
 bot = commands.Bot(command_prefix=commands.when_mentioned, case_insensitive=True, intents=intents)
 
 pterodactyl = PterodactylClient(
-    config["pterodactyl"]["panel_url"],
-    config["pterodactyl"]["api_key"],
-    config["server"]["id"],
+    panel_url=config["pterodactyl"]["panel_url"],
+    api_key=config["pterodactyl"]["api_key"],
+    server_id=config["pterodactyl"]["server_id"],
 )
 
 
@@ -42,4 +42,4 @@ class Bridge(commands.Cog):
 bot.add_cog(Bridge(bot))
 bot.load_extension('jishaku')
 
-bot.run(config['discord-token'])
+bot.run(config['discord']['token'])

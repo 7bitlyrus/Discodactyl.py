@@ -22,7 +22,7 @@ class PterodactylClient:
     server_id: str = None
     websocket: websockets.WebSocketClientProtocol = None
 
-    def __init__(self, panel_url: str, api_key: str, server_id: str):
+    def __init__(self, *, panel_url: str, api_key: str, server_id: str):
         self.api_key = api_key
         self.server_id = server_id
 

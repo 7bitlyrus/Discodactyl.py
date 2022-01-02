@@ -10,6 +10,7 @@ import websockets
 
 from .utils import CustomAdapter, fatal_http_code
 
+
 logger = logging.getLogger(__name__)
 
 

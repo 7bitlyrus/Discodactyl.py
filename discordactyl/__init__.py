@@ -7,6 +7,7 @@ from discord.ext import commands
 from .pterodactyl import PterodactylClient
 from .utils import quit_on_exception
 
+
 logging.basicConfig(level=logging.INFO)
 
 with open("config.yml", "r") as stream:

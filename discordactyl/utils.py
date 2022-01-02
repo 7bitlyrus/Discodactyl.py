@@ -1,5 +1,6 @@
 import logging
 
+
 # Modified from https://stackoverflow.com/a/55708449
 async def quit_on_exception(awaitable):
     try:

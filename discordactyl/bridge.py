@@ -1,21 +1,17 @@
 import logging
-import yaml
-
 from discord.ext import commands
 
+from .config import config
 from .pterodactyl import PterodactylClient
 from .utils import quit_on_exception
 
-with open("config.yml", "r") as stream:
-    config = yaml.safe_load(stream)
+logger = logging.getLogger(__name__)
 
 pterodactyl = PterodactylClient(
     panel_url=config["pterodactyl"]["panel_url"],
     api_key=config["pterodactyl"]["api_key"],
     server_id=config["pterodactyl"]["server_id"],
 )
-
-logger = logging.getLogger(__name__)
 
 
 class Bridge(commands.Cog):

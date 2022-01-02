@@ -20,6 +20,9 @@ class CustomAdapter(logging.LoggerAdapter):
         return '[%s] %s' % (self.extra['connid'], msg), kwargs
 
 
-# https://github.com/litl/backoff/blob/master/README.rst
-def fatal_code(e):
-    return 400 <= e.response.status_code < 500
+# Modified from https://github.com/litl/backoff/blob/master/README.rst
+def fatal_http_code(e):
+    try:
+        return 400 <= e.response.status_code < 500
+    except:
+        return False

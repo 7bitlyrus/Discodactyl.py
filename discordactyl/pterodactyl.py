@@ -8,7 +8,7 @@ import backoff
 import httpx
 import websockets
 
-from .utils import CustomAdapter, fatal_code
+from .utils import CustomAdapter, fatal_http_code
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class PterodactylClient:
 
         await self.send("auth", auth_token)
 
-    @backoff.on_exception(backoff.expo, httpx.HTTPError, giveup=fatal_code)
+    @backoff.on_exception(backoff.expo, httpx.HTTPError, giveup=fatal_http_code)
     @backoff.on_exception(backoff.expo, websockets.WebSocketException)
     @backoff.on_exception(backoff.expo, TokenExpired)
     async def _connect(self) -> None:
@@ -80,10 +80,10 @@ class PterodactylClient:
                 self.log.info('Authorization successful')
 
             if object['event'] == 'token expiring':
-                self.log.info(f'Server sent prompt for reauthoriazion')
+                self.log.info(f'Server sent prompt for reauthorization')
                 await self._authorize()
 
-            # We could reauthorize here, but we want to backoff just in case our permissions were revoked.
+            # We could reauthorize here, but we want to backoff just in case-- this should never happen in normal use.
             if object['event'] == 'token expired':
                 raise TokenExpired('Server sent notice that token expired')
 

@@ -6,6 +6,7 @@ from discord.ext import commands
 
 from .config import config
 
+
 logging.basicConfig(level=logging.INFO)
 
 

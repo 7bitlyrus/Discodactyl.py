@@ -1,9 +1,11 @@
 import logging
+
 from discord.ext import commands
 
 from .config import config
 from .pterodactyl import PterodactylClient
 from .utils import quit_on_exception
+
 
 logger = logging.getLogger(__name__)
 
